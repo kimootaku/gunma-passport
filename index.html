@@ -117,7 +117,7 @@
       cursor: pointer;
     }
 
-    /* ピンマーカー（下端先端が正確な位置を指す形状） */
+    /* ピンマーカー（下端先端が位置を指す形状） */
     .pin-container {
       position: relative;
       width: 28px;
@@ -242,7 +242,7 @@
     { name: "道の駅 六合", city: "中之条町", address: "吾妻郡中之条町大字小雨22", lat: 36.60785, lng: 138.63840 },
     { name: "道の駅 霊山たけやま", city: "中之条町", address: "吾妻郡中之条町大字五反田222-1", lat: 36.60907, lng: 138.83036 },
     { name: "道の駅 八ッ場ふるさと館", city: "長野原町", address: "吾妻郡長野原町大字林1567-4", lat: 36.54758, lng: 138.68425 },
-    { name: "嬬恋村観光案内所", city: "嬬恋村", address: "吾妻郡嬬恋村鎌原710-136", lat: 36.51350, lng: 138.53100 },
+    { name: "嬬恋村観光案内所", city: "嬬恋村", address: "吾妻郡嬬恋村鎌原710-136", lat: 36.53150, lng: 138.55023 },
     { name: "道の駅 草津運動茶屋公園", city: "草津町", address: "吾妻郡草津町大字草津2-1", lat: 36.61466, lng: 138.59011 },
     { name: "道の駅 あがつま峡", city: "東吾妻町", address: "吾妻郡東吾妻町三島6441", lat: 36.56959, lng: 138.73563 },
     { name: "道の駅 中山盆地", city: "高山村", address: "吾妻郡高山村大字中山2357-1", lat: 36.62250, lng: 138.95438 },
@@ -276,11 +276,11 @@
     { name: "道の駅 ふじみ", city: "前橋市", address: "前橋市富士見町石井1569-1", lat: 36.46939, lng: 139.09420 },
     { name: "Gunma Flower Park+", city: "前橋市", address: "前橋市柏倉町2471-7", lat: 36.45281, lng: 139.19172 },
     { name: "田島弥平旧宅（案内所）", city: "伊勢崎市", address: "伊勢崎市境島村1968-40", lat: 36.24660, lng: 139.23906 },
-    { name: "道の駅 おのこ", city: "渋川市", address: "渋川市小野子1980", lat: 36.56783, lng: 138.92211 },
-    { name: "道の駅 こもち", city: "渋川市", address: "渋川市白井2318-1", lat: 36.52084, lng: 139.00683 },
+    { name: "道の駅 おのこ", city: "渋川市", address: "渋川市小野子1980", lat: 36.54814, lng: 138.95281 },
+    { name: "道の駅 こもち", city: "渋川市", address: "渋川市白井2318-1", lat: 36.51515, lng: 139.01639 },
     { name: "しんとうふるさと公園", city: "榛東村", address: "北群馬郡榛東村山子田1920-1", lat: 36.44846, lng: 138.96954 },
     { name: "道の駅 よしおか温泉", city: "吉岡町", address: "北群馬郡吉岡町大字漆原2004", lat: 36.44135, lng: 139.03508 },
-    { name: "道の駅 玉村宿", city: "玉村町", address: "佐波郡玉村町大字上新田604-1", lat: 36.30152, lng: 139.11741 },
+    { name: "道の駅 玉村宿", city: "玉村町", address: "佐波郡玉村町大字上新田604-1", lat: 36.30826, lng: 139.09432 },
 
     // 東部エリア
     { name: "道の駅 おおた", city: "太田市", address: "太田市粕川町701-1", lat: 36.26455, lng: 139.29616 },
@@ -417,7 +417,7 @@
     }
   };
 
-  // 高速CDN経由でGeoJSONを取得（CORS・アクセス制限回避）
+  // 高速CDN経由でGeoJSONを取得
   const GEOJSON_CDN_URL = "https://cdn.jsdelivr.net/gh/smartnews-smri/japan-topography@main/data/municipality/geojson/s0010/N03-21_10_210101.json";
 
   fetch(GEOJSON_CDN_URL)
