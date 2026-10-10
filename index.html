@@ -117,7 +117,7 @@
       cursor: pointer;
     }
 
-    /* ピンマーカー（下端先端が正確な位置を指す構造） */
+    /* ピンマーカー（下端先端が正確な位置を指す形状） */
     .pin-container {
       position: relative;
       width: 28px;
@@ -236,7 +236,7 @@
   <div id="map"></div>
 
 <script>
-  // GUNMA PASSPORT 全45ヶ所（正確な住所地番・実測施設座標）
+  // GUNMA PASSPORT 全45ヶ所（正確な実測施設座標データ）
   const stampSpots = [
     // 吾妻エリア
     { name: "道の駅 六合", city: "中之条町", address: "吾妻郡中之条町大字小雨22", lat: 36.60785, lng: 138.63840 },
@@ -289,7 +289,7 @@
     { name: "道の駅 くろほね・やまびこ", city: "桐生市", address: "桐生市黒保根町下田沢91-4", lat: 36.49123, lng: 139.27178 },
     { name: "わたらせ自然館", city: "板倉町", address: "邑楽郡板倉町大字海老瀬4663-1", lat: 36.22235, lng: 139.65080 },
     { name: "駅前プラザ「メイちゃん家」", city: "明和町", address: "邑楽郡明和町中谷328-10", lat: 36.20809, lng: 139.52622 },
-    { name: "光恩寺長屋門", city: "千代田町", address: "邑楽郡千代田町赤岩1041", lat: 36.20784, 139.43942 },
+    { name: "光恩寺長屋門", city: "千代田町", address: "邑楽郡千代田町赤岩1041", lat: 36.20784, lng: 139.43942 },
     { name: "大泉町観光協会", city: "大泉町", address: "邑楽郡大泉町西小泉4-11-22", lat: 36.25785, lng: 139.40795 },
     { name: "シンボルタワー未来MiRAi", city: "邑楽町", address: "邑楽郡邑楽町中野2639-1", lat: 36.25317, lng: 139.46252 }
   ];
@@ -297,15 +297,16 @@
   const STORAGE_KEY = "gunma_passport_visited";
   let visitedCities = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
 
-  // 地図初期化
+  // 地図初期化（群馬県中心座標）
   const map = L.map('map', { zoomSnap: 0.5 }).setView([36.50, 138.95], 9.5);
 
+  // 地図タイル（OpenStreetMap）
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18,
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  let geojsonLayer;
+  let geojsonLayer = null;
   const pinMarkers = [];
   const pinsGroup = L.layerGroup().addTo(map);
 
@@ -367,7 +368,7 @@
     // ポリゴン色更新
     if (geojsonLayer) {
       geojsonLayer.eachLayer(layer => {
-        const name = layer.feature.properties.N03_004;
+        const name = layer.feature && layer.feature.properties && layer.feature.properties.N03_004;
         if (name === cityName) {
           layer.setStyle(getPolygonStyle(cityName));
         }
@@ -416,11 +417,14 @@
     }
   };
 
-  // GeoJSON取得と描画
-  const GEOJSON_URL = "https://raw.githubusercontent.com/smartnews-smri/japan-topography/main/data/municipality/geojson/s0010/N03-21_10_210101.json";
+  // 高速CDN経由でGeoJSONを取得（CORS・アクセス制限回避）
+  const GEOJSON_CDN_URL = "https://cdn.jsdelivr.net/gh/smartnews-smri/japan-topography@main/data/municipality/geojson/s0010/N03-21_10_210101.json";
 
-  fetch(GEOJSON_URL)
-    .then(res => res.json())
+  fetch(GEOJSON_CDN_URL)
+    .then(res => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
     .then(data => {
       geojsonLayer = L.geoJSON(data, {
         style: feature => getPolygonStyle(feature.properties.N03_004),
@@ -445,8 +449,8 @@
       updateStats();
     })
     .catch(err => {
-      console.error(err);
-      alert("境界データの読み込みに失敗しました。インターネット接続をご確認ください。");
+      console.warn("境界GeoJSONデータの読み込みをスキップしました（ピン機能はそのまま利用可能です）:", err);
+      updateStats();
     });
 
   // リセット
@@ -457,8 +461,8 @@
 
       if (geojsonLayer) {
         geojsonLayer.eachLayer(layer => {
-          const name = layer.feature.properties.N03_004;
-          layer.setStyle(getPolygonStyle(name));
+          const name = layer.feature && layer.feature.properties && layer.feature.properties.N03_004;
+          if (name) layer.setStyle(getPolygonStyle(name));
         });
       }
 
@@ -470,6 +474,8 @@
       updateStats();
     }
   };
+
+  updateStats();
 </script>
 </body>
 </html>
