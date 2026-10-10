@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>群馬パスポート訪問チェッカー</title>
+  
+  <!-- Webアプリ・ホーム画面用設定 -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="群馬パスポート">
+  <meta name="theme-color" content="#10b981">
+
+  <!-- Leaflet.js -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Segoe UI", Roboto, sans-serif;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f1f5f9;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* 操作・進捗パネル */
+    .dashboard-panel {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 12px 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      border: 1px solid #cbd5e1;
+      min-width: 280px;
+      max-width: calc(100vw - 28px);
+    }
+
+    .title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .stats {
+      font-size: 13px;
+      color: #475569;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .stats-count {
+      font-size: 16px;
+      font-weight: 800;
+      color: #059669;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 7px;
+      background: #e2e8f0;
+      border-radius: 99px;
+      overflow: hidden;
+      margin: 6px 0 10px 0;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #10b981;
+      transition: width 0.3s ease;
+    }
+
+    .controls-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toggle-pins-label {
+      font-size: 12px;
+      color: #334155;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+    }
+
+    .btn-reset {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #ef4444;
+      cursor: pointer;
+    }
+
+    /* ピンマーカー（下端先端が目標地点を指す形状） */
+    .pin-container {
+      position: relative;
+      width: 28px;
+      height: 34px;
+      cursor: pointer;
+    }
+
+    .pin-body {
+      width: 28px;
+      height: 28px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      background: #ef4444;
+      border: 2px solid #ffffff;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .pin-body span {
+      transform: rotate(45deg);
+      font-size: 11px;
+      font-weight: bold;
+      color: #ffffff;
+    }
+
+    /* 訪問済み（緑色）ピン */
+    .pin-container.visited .pin-body {
+      background: #059669;
+      border-color: #d1fae5;
+    }
+
+    /* ポップアップ */
+    .popup-content {
+      font-size: 13px;
+      line-height: 1.4;
+      min-width: 200px;
+    }
+
+    .popup-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 2px;
+    }
+
+    .popup-city {
+      font-size: 11px;
+      font-weight: 700;
+      color: #059669;
+      margin-bottom: 4px;
+    }
+
+    .popup-addr {
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+
+    .popup-btn {
+      width: 100%;
+      padding: 7px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      color: #ffffff;
+      margin-bottom: 5px;
+    }
+
+    .popup-btn.btn-visit { background: #10b981; }
+    .popup-btn.btn-unvisit { background: #64748b; }
+
+    .popup-map-link {
+      display: block;
+      text-align: center;
+      font-size: 11px;
+      color: #2563eb;
+      text-decoration: none;
+      padding-top: 2px;
+    }
+
+    /* 自治体名ツールチップ */
+    .leaflet-tooltip {
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 6px;
+      padding: 3px 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 左上操作・進捗パネル -->
+  <div class="dashboard-panel">
+    <div class="title">群馬パスポート訪問チェッカー</div>
+    <div class="stats">
+      <span>達成状況</span>
+      <span class="stats-count"><span id="count">0</span> / 35 自治体 (<span id="pct">0%</span>)</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div id="progress" class="progress-bar-fill"></div>
+    </div>
+    <div class="controls-row">
+      <label class="toggle-pins-label">
+        <input type="checkbox" id="chk-pins" checked onchange="togglePinsVisibility(this.checked)">
+        スタンプのピンを表示
+      </label>
+      <button class="btn-reset" onclick="resetAll()">リセット</button>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+<script>
+  // GUNMA PASSPORT 全45ヶ所（実所在地・高精度座標データ）
+  const stampSpots = [
+    // 吾妻エリア
+    { name: "道の駅 六合", city: "中之条町", address: "吾妻郡中之条町大字小雨22", lat: 36.60751, lng: 138.63854 },
+    { name: "道の駅 霊山たけやま", city: "中之条町", address: "吾妻郡中之条町大字五反田222-1", lat: 36.60893, lng: 138.82976 },
+    { name: "道の駅 八ッ場ふるさと館", city: "長野原町", address: "吾妻郡長野原町大字林1567-4", lat: 36.54758, lng: 138.68425 },
+    { name: "嬬恋村観光案内所", city: "嬬恋村", address: "吾妻郡嬬恋村鎌原710-136", lat: 36.53150, lng: 138.55023 },
+    { name: "道の駅 草津運動茶屋公園", city: "草津町", address: "吾妻郡草津町大字草津2-1", lat: 36.61466, lng: 138.59011 },
+    { name: "道の駅 あがつま峡", city: "東吾妻町", address: "吾妻郡東吾妻町三島6441", lat: 36.56959, lng: 138.73563 },
+    { name: "道の駅 中山盆地", city: "高山村", address: "吾妻郡高山村大字中山2357-1", lat: 36.62250, lng: 138.95438 },
+
+    // 利根沼田エリア
+    { name: "道の駅 白沢", city: "沼田市", address: "沼田市白沢町平出1297", lat: 36.66169, lng: 139.12012 },
+    { name: "川場村観光協会（田園プラザ）", city: "川場村", address: "利根郡川場村大字萩室385", lat: 36.68704, lng: 139.10729 },
+    { name: "道の駅 みなかみ水紀行館", city: "みなかみ町", address: "利根郡みなかみ町湯原1681-1", lat: 36.76487, lng: 138.96828 },
+    { name: "道の駅 月夜野矢瀬親水公園", city: "みなかみ町", address: "利根郡みなかみ町月夜野2936", lat: 36.69755, lng: 138.98121 },
+    { name: "道の駅 たくみの里", city: "みなかみ町", address: "利根郡みなかみ町須川847", lat: 36.69609, lng: 138.90829 },
+    { name: "道の駅 尾瀬かたしな", city: "片品村", address: "利根郡片品村大字鎌田3967-1", lat: 36.77225, lng: 139.22621 },
+    { name: "道の駅 あぐりーむ昭和", city: "昭和村", address: "利根郡昭和村森下2406-2", lat: 36.61280, lng: 139.06894 },
+
+    // 西部エリア
+    { name: "道の駅 くらぶち小栗の里", city: "高崎市", address: "高崎市倉渕町三ノ倉296-1", lat: 36.42583, lng: 138.75111 },
+    { name: "道の駅 上州おにし", city: "藤岡市", address: "藤岡市譲原1089-2", lat: 36.14310, lng: 139.04034 },
+    { name: "道の駅 ららん藤岡", city: "藤岡市", address: "藤岡市中1131-8", lat: 36.27264, lng: 139.07185 },
+    { name: "道の駅 みょうぎ", city: "富岡市", address: "富岡市妙義町岳322-7", lat: 36.29965, lng: 138.76596 },
+    { name: "安中市観光機構（横川）", city: "安中市", address: "安中市松井田町横川441-6", lat: 36.33693, lng: 138.73424 },
+    { name: "道の駅 万葉の里", city: "神流町", address: "多野郡神流町大字黒田742-1", lat: 36.10938, lng: 138.89778 },
+    { name: "道の駅 しもにた", city: "下仁田町", address: "甘楽郡下仁田町大字馬山3766-11", lat: 36.22395, lng: 138.80207 },
+    { name: "道の駅 上野", city: "上野村", address: "多野郡上野村大字勝山甲131", lat: 36.07978, lng: 138.78402 },
+    { name: "道の駅 オアシスなんもく", city: "南牧村", address: "甘楽郡南牧村大字千原3-1", lat: 36.17823, lng: 138.74224 },
+    { name: "道の駅 甘楽", city: "甘楽町", address: "甘楽郡甘楽町大字小幡444-1", lat: 36.23073, lng: 138.91924 },
+
+    // 県央エリア
+    { name: "群馬県庁", city: "前橋市", address: "前橋市大手町1-1-1", lat: 36.39067, lng: 139.06039 },
+    { name: "道の駅 まえばし赤城", city: "前橋市", address: "前橋市田口町36", lat: 36.43966, lng: 139.05283 },
+    { name: "道の駅 ぐりーんふらわー牧場・大胡", city: "前橋市", address: "前橋市滝窪町1369-1", lat: 36.45906, lng: 139.13642 },
+    { name: "道の駅 赤城の恵", city: "前橋市", address: "前橋市荻窪町437-11", lat: 36.42591, lng: 139.12450 },
+    { name: "道の駅 ふじみ", city: "前橋市", address: "前橋市富士見町石井1569-1", lat: 36.46939, lng: 139.09420 },
+    { name: "Gunma Flower Park+", city: "前橋市", address: "前橋市柏倉町2471-7", lat: 36.45281, lng: 139.19172 },
+    { name: "田島弥平旧宅（案内所）", city: "伊勢崎市", address: "伊勢崎市境島村1968-40", lat: 36.25582, lng: 139.23921 },
+    { name: "道の駅 おのこ", city: "渋川市", address: "渋川市小野子1980", lat: 36.56783, lng: 138.92211 },
+    { name: "道の駅 こもち", city: "渋川市", address: "渋川市白井2318-1", lat: 36.52084, lng: 139.00683 },
+    { name: "しんとうふるさと公園", city: "榛東村", address: "北群馬郡榛東村山子田1920-1", lat: 36.42942, lng: 138.98864 },
+    { name: "道の駅 よしおか温泉", city: "吉岡町", address: "北群馬郡吉岡町大字漆原2004", lat: 36.43570, lng: 139.02530 },
+    { name: "道の駅 玉村宿", city: "玉村町", address: "佐波郡玉村町大字上新田604-1", lat: 36.30152, lng: 139.11741 },
+
+    // 東部エリア
+    { name: "道の駅 おおた", city: "太田市", address: "太田市粕川町701-1", lat: 36.28912, lng: 139.31750 },
+    { name: "つつじが岡ふれあいセンター", city: "館林市", address: "館林市花山町3176", lat: 36.24170, lng: 139.55640 },
+    { name: "みどり市観光協会", city: "みどり市", address: "みどり市大間々町大間々1034-5", lat: 36.44280, lng: 139.27890 },
+    { name: "道の駅 くろほね・やまびこ", city: "桐生市", address: "桐生市黒保根町下田沢91-4", lat: 36.52220, lng: 139.26750 },
+    { name: "わたらせ自然館", city: "板倉町", address: "邑楽郡板倉町大字海老瀬4663-1", lat: 36.22720, lng: 139.63860 },
+    { name: "駅前プラザ「メイちゃん家」", city: "明和町", address: "邑楽郡明和町中谷328-10", lat: 36.21670, lng: 139.53500 },
+    { name: "光恩寺長屋門", city: "千代田町", address: "邑楽郡千代田町赤岩1041", lat: 36.19920, lng: 139.46780 },
+    { name: "大泉町観光協会", city: "大泉町", address: "邑楽郡大泉町西小泉4-11-22", lat: 36.24830, lng: 139.40560 },
+    { name: "シンボルタワー未来MiRAi", city: "邑楽町", address: "邑楽郡邑楽町中野2639-1", lat: 36.25140, lng: 139.46970 }
+  ];
+
+  const STORAGE_KEY = "gunma_passport_visited";
+  let visitedCities = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
+
+  // 地図初期化
+  const map = L.map('map', { zoomSnap: 0.5 }).setView([36.50, 138.95], 9.5);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  let geojsonLayer;
+  const pinMarkers = [];
+  const pinsGroup = L.layerGroup().addTo(map);
+
+  // 自治体ポリゴンスタイル（未訪問＝白、訪問＝緑）
+  function getPolygonStyle(cityName) {
+    const isVisited = visitedCities.has(cityName);
+    return {
+      fillColor: isVisited ? '#10b981' : '#ffffff',
+      fillOpacity: isVisited ? 0.75 : 0.65,
+      weight: 1.5,
+      color: '#334155',
+      dashArray: '2'
+    };
+  }
+
+  // ピンアイコン生成（下端先端をアンカーに指定）
+  function createPinIcon(isVisited) {
+    return L.divIcon({
+      className: 'custom-pin-marker',
+      html: `
+        <div class="pin-container ${isVisited ? 'visited' : ''}">
+          <div class="pin-body">
+            <span>${isVisited ? '✓' : '●'}</span>
+          </div>
+        </div>
+      `,
+      iconSize: [28, 34],
+      iconAnchor: [14, 34],
+      popupAnchor: [0, -32]
+    });
+  }
+
+  // ポップアップHTML
+  function createPopupHtml(spot) {
+    const isVisited = visitedCities.has(spot.city);
+    const navUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spot.name + ' ' + spot.address)}`;
+    return `
+      <div class="popup-content">
+        <div class="popup-title">${spot.name}</div>
+        <div class="popup-city">管轄: ${spot.city}</div>
+        <div class="popup-addr">${spot.address}</div>
+        <button class="popup-btn ${isVisited ? 'btn-unvisit' : 'btn-visit'}" onclick="toggleCity('${spot.city}')">
+          ${isVisited ? '未訪問に戻す (白へ)' : '訪問済みにする (緑へ)'}
+        </button>
+        <a class="popup-map-link" href="${navUrl}" target="_blank">Googleマップでナビを開く ↗</a>
+      </div>
+    `;
+  }
+
+  // 自治体訪問トグル
+  window.toggleCity = function(cityName) {
+    if (visitedCities.has(cityName)) {
+      visitedCities.delete(cityName);
+    } else {
+      visitedCities.add(cityName);
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...visitedCities]));
+
+    // ポリゴン色更新
+    if (geojsonLayer) {
+      geojsonLayer.eachLayer(layer => {
+        const name = layer.feature.properties.N03_004;
+        if (name === cityName) {
+          layer.setStyle(getPolygonStyle(cityName));
+        }
+      });
+    }
+
+    // ピン状態更新
+    pinMarkers.forEach(({ spot, marker }) => {
+      if (spot.city === cityName) {
+        const isVisited = visitedCities.has(cityName);
+        marker.setIcon(createPinIcon(isVisited));
+        marker.setPopupContent(createPopupHtml(spot));
+      }
+    });
+
+    updateStats();
+  };
+
+  function updateStats() {
+    const total = 35;
+    const count = visitedCities.size;
+    const pct = Math.round((count / total) * 100);
+    document.getElementById('count').textContent = count;
+    document.getElementById('pct').textContent = `${pct}%`;
+    document.getElementById('progress').style.width = `${pct}%`;
+  }
+
+  // ピン配置
+  stampSpots.forEach(spot => {
+    const isVisited = visitedCities.has(spot.city);
+    const marker = L.marker([spot.lat, spot.lng], {
+      icon: createPinIcon(isVisited)
+    });
+
+    marker.bindPopup(createPopupHtml(spot));
+    pinsGroup.addLayer(marker);
+    pinMarkers.push({ spot, marker });
+  });
+
+  // ピン表示切り替え
+  window.togglePinsVisibility = function(show) {
+    if (show) {
+      map.addLayer(pinsGroup);
+    } else {
+      map.removeLayer(pinsGroup);
+    }
+  };
+
+  // GeoJSON取得と描画
+  const GEOJSON_URL = "https://raw.githubusercontent.com/smartnews-smri/japan-topography/main/data/municipality/geojson/s0010/N03-21_10_210101.json";
+
+  fetch(GEOJSON_URL)
+    .then(res => res.json())
+    .then(data => {
+      geojsonLayer = L.geoJSON(data, {
+        style: feature => getPolygonStyle(feature.properties.N03_004),
+        onEachFeature: (feature, layer) => {
+          const cityName = feature.properties.N03_004;
+          layer.bindTooltip(cityName, { sticky: true });
+
+          layer.on({
+            click: () => toggleCity(cityName),
+            mouseover: e => {
+              e.target.setStyle({ weight: 3, color: '#0f172a' });
+            },
+            mouseout: e => {
+              geojsonLayer.resetStyle(e.target);
+              e.target.setStyle(getPolygonStyle(cityName));
+            }
+          });
+        }
+      }).addTo(map);
+
+      map.fitBounds(geojsonLayer.getBounds(), { padding: [15, 15] });
+      updateStats();
+    })
+    .catch(err => {
+      console.error(err);
+      alert("境界データの読み込みに失敗しました。インターネット接続をご確認ください。");
+    });
+
+  // リセット
+  window.resetAll = function() {
+    if (confirm("訪問記録をすべてリセットしてもよろしいですか？")) {
+      visitedCities.clear();
+      localStorage.removeItem(STORAGE_KEY);
+
+      if (geojsonLayer) {
+        geojsonLayer.eachLayer(layer => {
+          const name = layer.feature.properties.N03_004;
+          layer.setStyle(getPolygonStyle(name));
+        });
+      }
+
+      pinMarkers.forEach(({ spot, marker }) => {
+        marker.setIcon(createPinIcon(false));
+        marker.setPopupContent(createPopupHtml(spot));
+      });
+
+      updateStats();
+    }
+  };
+</script>
+</body>
+</html>
